@@ -10,6 +10,13 @@ How much energy does a smartphone actually spend watching short videos, streamin
   <img src="resultados/comparacao_stat_dyna_LTE.png" width="49%" alt="Energy per app, static vs moving, LTE">
 </p>
 
+## Why it matters
+
+- **An invisible footprint.** Smartphones are used for hours every day, yet users have no idea what an hour of TikTok, a video call or a Netflix episode costs in energy and CO₂. The simulator turns that into numbers anyone can understand: Wh, % of battery, grams of CO₂.
+- **Measured, not modelled.** Most estimates rely on theoretical models. Here every number comes from sensors wired inside real phones, recorded during real usage, including on a moving tram.
+- **Component-level insight.** Because the radio front-end (RF, power amplifier) is measured separately from the rest of the phone, the data shows how much of the energy is due to the **network itself**. That is the part operators and network designers can act on.
+- **Practical levers.** Comparing apps, video qualities, network technologies (3G / 4G / 5G / Wi-Fi) and call technologies (VoLTE, VoWiFi, UMTS) shows users which habits actually make a difference.
+
 ## How it works
 
 ```
@@ -56,18 +63,47 @@ Energy is normalised **per minute**, since sessions last from about 1 to 24 minu
 └── data/Experiment_Data/           # Raw measurements (git submodule, see below)
 ```
 
-## Running it
+## Running the simulator
 
-**Simulator**
+**Requirements:** [Node.js](https://nodejs.org/) 18 or later (on Linux/macOS, [nvm](https://github.com/nvm-sh/nvm) is the simplest way: `nvm install --lts`).
 
 ```bash
-cd website && npm install           # express, cors, body-parser, csv-parser
-cd server && node server.js         # API on http://localhost:5000 (run from website/server)
-# in a second terminal:
-cd website/client && npx serve      # front-end on http://localhost:3000
+git clone https://github.com/daniel-cury/SIR.git
+cd SIR/website
+npm install                         # installs express, cors, body-parser, csv-parser
 ```
 
-**Analysis**
+Then start the two parts, each in its own terminal:
+
+```bash
+# Terminal 1: API (must be started from website/server, where the CSV files are)
+cd SIR/website/server
+node server.js                      # → Server running on http://localhost:5000
+
+# Terminal 2: web interface
+cd SIR/website/client
+npx serve                           # → open the address shown, usually http://localhost:3000
+```
+
+The raw measurements are **not** needed to run the simulator: the server only reads the pre-computed summaries in `website/server/*.csv`.
+
+## Using the simulator
+
+The interface is in French.
+
+1. **Set the context**: choose the smartphone (*Appareil utilisé*), the mobility state (*Stationnaire* or *En déplacement*) and the network technology (5G, 4G, Wi-Fi or 3G).
+2. **Pick an activity** by clicking its card: short videos (TikTok, Reels, YT Shorts), communication (phone call, SMS), streaming (Netflix, YouTube, Prime Video…), video calls (Zoom, Meet, Teams) or other (web browsing, casual games).
+   - For streaming, a **video quality** selector appears. For calls, choose the **other person's technology** (VoLTE, VoWiFi, UMTS).
+3. **Set a duration** in minutes and click **Ajouter**. The activity is placed on the timeline; repeat to build a full day. Use **×** on a block to remove it, or **Réinitialiser** to start over.
+4. Click **Calculer ma consommation**. The results show:
+   - total energy (Wh) and the **% of battery** it represents for the chosen phone,
+   - the share of energy spent by the **radio (RF)**,
+   - a **CO₂ range** (g), from 21.7 to 60 gCO₂/kWh (RTE 2024 and ADEME emission factors for French electricity),
+   - a breakdown per activity.
+
+If a combination has not been measured (for example an app on a network that was not tested), a pop-up lists the missing scenarios instead of showing an estimate.
+
+## Running the analysis
 
 ```bash
 git submodule update --init         # fetch the raw measurements (~11 GB)
