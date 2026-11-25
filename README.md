@@ -1,147 +1,90 @@
-# SIR 
+# Smartphone Network Energy Analysis (SIR)
 
-> Projet SIR – INSA Lyon  
-> 4TCA – 2024-2025  
-> Analyse et visualisation de la consommation énergétique des smartphones via des scénarios réels
+> Team project · INSA Lyon, Telecommunications department (4TC) · 2024–2025
+> 🇫🇷 Version française : [README.fr.md](README.fr.md)
 
----
+How much energy does a smartphone actually spend watching short videos, streaming, or making a call — and how much of that goes to the cellular radio? This project answers it with **hardware measurements on instrumented phones**, not theoretical models, and turns the results into a **web simulator** that estimates the energy, battery percentage and CO₂ of a day of phone use.
 
-## Objectif général
+<p align="center">
+  <img src="resultados/comparacao_rede_apps.png" width="49%" alt="Energy per app, 3G vs LTE">
+  <img src="resultados/comparacao_stat_dyna_LTE.png" width="49%" alt="Energy per app, static vs moving, LTE">
+</p>
 
-Ce projet **SIR** vise à mieux comprendre l’impact énergétique réel des smartphones et à sensibiliser le public. Contrairement aux approches par modélisation théorique, **des mesures matérielles réelles** sont ici utilisées, à partir de téléphones modifiés.
-
-Le projet propose un **simulateur web** permettant de :
-- construire des scénarios d’usage (streaming, appel, navigation, etc.) ;
-- estimer la **consommation d’énergie** et les **émissions de CO₂ associées** ;
-- visualiser l’impact sur la batterie ;
-- sensibiliser à l’empreinte numérique personnelle.
-
----
-
-## Contexte technique
-
-- **Téléphones instrumentés** : accès physique aux lignes d'alimentation internes.
-- **Capteurs PAC1954** connectés à un Raspberry Pi.
-- **Scénarios réels** enregistrés pour divers réseaux, applications, et situations (mobilité).
-- Données disponibles :
-  - énergie consommée par la batterie (`E_BAT_Jm`) ;
-  - consommation module RF (`E_RF_Jm`), BaseBand processor (`E_BB_Jm`) et Power Amplifier (`E_PA_Jm`) ;
-  - spécifications des appareils (capacité batterie, taille écran).
-
----
-
-## Structure du projet
-
-```bash
-SIR/
-│
-├── website/              # Interface utilisateur (HTML, CSS, JS)
-│   ├── index.html       # Page principale du simulateur
-│   ├── style.css        # Feuilles de style personnalisées
-│   └── script.js        # Logique front-end interactive
-│
-├── server/                                    # API backend Express.js
-│   └── server.js                              # Endpoint /calculate pour les estimations
-│   ├── other_scenario_summary_df.csv          # Données scenarios catégorie "Autre"
-│   └── call_scenario_summary.csv              # Données scenarios appel téléphonique
-│   └── short_video_scenario_summary.csv       # Données  scenarios catégorie "Short Videos"
-│   └── video_streaming_scenario_summary.csv   # Données  scenarios catégorie "Videostreaming"
-│   └── visio_scenario_summary.csv             # Données  scenarios catégorie "Visioconférence"
-│   └── batteries_ue.csv                       # Spécifications différents appareils
-│
-├── processing_ready.ipynb  # Notebook de préparation et traitement des données
-├── result_df.csv           # Résultats énergétiques formatés
-├── README.md
-└── ...
+## How it works
 
 ```
-## Fonctionnement de l’API
-Le backend `/server.js` :
+Instrumented phone ──► PAC1954 power sensor ──► Raspberry Pi ──► CSV (64–256 samples/s)
+                                                                    │
+                     Python notebooks (energy per component, J/min) ◄┘
+                                    │
+               *_scenario_summary_df.csv ──► Express API ──► Web simulator
+```
 
--> lit les fichiers CSV de scénarios (scenario_summary_df.csv) et specifications des appareils (batteries_ue.csv) ;
+- **Measurements.** Phones (Google Pixel 6 Pro, iPhone X / 12 mini, Fairphone) have their internal power lines tapped. A PAC1954 sensor records voltage, current and power for the battery (`BAT`), the baseband processor (`BB`) and the RF power amplifier (`PA`).
+- **Scenarios.** Instagram Reels, TikTok, YouTube Shorts, video streaming, voice and video calls, on 3G / LTE / 5G, both static and while moving (tram line T1 across Lyon).
+- **Processing.** The notebooks split each recording into its useful window, integrate power into energy per component, and export one summary table per usage category.
+- **Simulator.** The user picks a phone, a network and a mobility state, schedules activities over a day, and gets the energy (Wh), the % of battery used and a min–max CO₂ estimate.
 
--> reçoit activités planifiées, duration, type d’appareil, réseau et état (statique ou mobile) ;
+## Key findings (short-video apps, Pixel 6 Pro)
 
--> cherche le scénario correspondant (sinon fallback vers Google 6Pro) ;
+Energy is normalised **per minute**, since sessions last from about 1 to 24 minutes.
 
--> calcule l’énergie consommée (Wh), le % de batterie utilisé et le CO₂ émis (min–max) ;
+- Scrolling short videos costs about **0.04–0.06 Wh per minute** (≈ 2.5–3.3 W on average), roughly 3 Wh per hour. Instagram is the most expensive of the three apps.
+- **No network is consistently cheaper**: LTE costs about 3 % more than 3G on Instagram and 19 % more on YouTube Shorts, but 7 % less on TikTok.
+- **Mobility had no clear effect**: on the tram, Instagram used 4 % less energy per minute than when static, and TikTok used 15 % more.
+- These are 1–3 sessions per configuration, so the differences above are indicative rather than statistically established.
 
--> renvoie les résultats au frontend.
+## My contribution
 
-Exécuter le projet : 
-1. Lancer le serveur
-Ouvrir un terminal et se rendre dans le dossier website/server :
-cd website/server
-Installer les dépendances (si ce n’est pas déjà fait) :
-npm install
-Puis lancer le serveur avec :
-node server.js
-Par défaut, le serveur écoute sur le port 5000.
-2. Lancer le client
-Dans un deuxième terminal, se rendre dans le dossier website/client :
-cd website/client
-Lancer le client avec :
-npx serve
-Cette commande démarre un serveur local pour héberger la page HTML. Le terminal vous indiquera sur quelle adresse le site est accessible, généralement :
-http://localhost:3000
-Le site est maintenant opérationnel.
-Vous pouvez :
-Sélectionner un appareil, un réseau et une mobilité.
-Planifier des activités (streaming, visio, appels, etc.).
-Obtenir l’estimation de la consommation énergétique et du pourcentage de batterie utilisé.
+- **Comparative energy analysis**: [`analise.py`](analise.py) computes the energy per minute of every Reels session and compares apps × network (3G vs LTE) × mobility (static vs moving). It generates the figures in [`resultados/`](resultados/).
+- **Large-dataset processing and visualisation**: [`processing_ready.ipynb`](processing_ready.ipynb) processes multi-million-row recordings in chunks, downsamples them for interactive Plotly charts ([`resultados/graficos_html/`](resultados/graficos_html/)) and exports the scenario summary.
+- **Simulator**: device battery specifications ([`batteries_ue.csv`](website/server/batteries_ue.csv)) and front-end fixes (activity timeline).
 
+## Repository layout
 
-Obtenir les données de mesure : 
+```
+├── analise.py                      # Energy comparison: app × network × mobility
+├── analyse_v2.py
+├── processing_ready.ipynb          # Chunked processing + interactive plots
+├── *_processing.ipynb              # One processing notebook per usage category
+├── utils.py                        # CSV parsing and energy integration helpers
+├── resultados/                     # Generated figures (PNG + interactive HTML)
+├── scripts/planning_gantt.py       # Project timeline
+├── website/
+│   ├── client/                     # Simulator front-end (HTML, CSS, JS)
+│   └── server/                     # Express API (/calculate) + scenario CSVs
+└── data/Experiment_Data/           # Raw measurements (git submodule, see below)
+```
 
-Les fichiers de données sont compris dans le Git ci-dessous : 
+## Running it
 
-https://gitlab.inria.fr/youssef.badra/Experiment_Data
+**Simulator**
 
-Ce dossier est un submodule Git. Pour l'initialiser :
+```bash
+cd website && npm install           # express, cors, body-parser, csv-parser
+cd server && node server.js         # API on http://localhost:5000 (run from website/server)
+# in a second terminal:
+cd website/client && npx serve      # front-end on http://localhost:3000
+```
 
-cd data/Experiment_Data
-git submodule update --init --recursive
-git pull origin master
+**Analysis**
 
+```bash
+git submodule update --init         # fetch the raw measurements (~11 GB)
+pip install pandas seaborn matplotlib plotly
+python analise.py                   # figures are written to resultados/
+```
 
-Traitement des données brutes dans le notebook
+## Data
 
-Les fichier *_processing.ipynb automatisent le traitement des mesures réelles à partir de CSV de mesures. Pour traiter de nouveaux fichiers :
+The raw measurements belong to the research dataset of Youssef Badra (INSA Lyon / Inria, CITI lab) and are hosted at [gitlab.inria.fr/youssef.badra/Experiment_Data](https://gitlab.inria.fr/youssef.badra/Experiment_Data). They are linked here as a git submodule and not redistributed. The column format is documented in `data/Experiment_Data/README_File_Format.md`.
 
-Ajouter des fichiers à traiter :
+## Team and credits
 
-Placez vos fichiers .csv dans un dossier sous ./data/Experiment_Data/...
+Built by a team of INSA Lyon students: [Tom Goarin](https://github.com/ccanela/SIR/commits?author=tom%20goarin), [ccanela](https://github.com/ccanela) (original repository: [ccanela/SIR](https://github.com/ccanela/SIR)), Daniel Cury and teammates.
 
-Le notebook scanne automatiquement les sous-dossiers (ex: Reels, Voice call)
+## References
 
-Ajouter un fichier à la blacklist :
-
-Si un fichier est bruité ou incorrect, ajoutez son nom au set blacklist_filenames dans le notebook :
-blacklist_filenames = {
-  "2_5_6pro_LTE_YTshorts_stat_64sps.csv",
-  # Ajouter ici...
-}
-
-Chaque fichier notebook de traitement des données est composé de deux blocs :
-
-1. Bloc de traitement des données : jouer ce bloc pour traiter les données de mesures. Retourne une table result_df qui contient toutes les métriques importantes : énergies moyennes (J/min), durée utile, % RF, etc.
-
-2. Bloc d'export : Ce bloc génère un fichier de la forme *_scenario_summary_df : contient les consomations moyennes par scénario ID, sauvegardée dans un CSV utilisé par le serveur.
-
-Ajouter un nouveau scénario de simulation
-
-Ajouter le fichier CSV de mesure dans un sous-dossier de data/Experiment_Data/
-
-Mettre à jour le notebook processing_ready.ipynb, en ajoutant le nouveau dossier parmi ceux traités par le fichier
-
-Exécuter la cellule principale (boucle for) pour ajouter ce fichier au result_df. Le notebook ne traite pas les fichiers déjà traités et ajoutés à result_df
-
-Ré executer le bloc de generation du scenario summary. Le serveur peut maintenant accéder au nouveau scénario traité.
-
-Données de mesure (Git submodule)
-
-Les fichiers de mesure sont dans le dépôt suivant :
-https://gitlab.inria.fr/youssef.badra/Experiment_Data
-
-cd data/Experiment_Data
-git submodule update --init --recursive
+- Y. Badra, R. Stanica — *Experimental Analysis of Energy Consumption in Video Streaming Services*. INSA Lyon, Inria, CITI.
+- Y. Badra, R. Stanica — *A Comparison of Energy Consumption in Voice Call Services*. INSA Lyon, Inria, CITI.
+- I. Ahmed et al. — *Lowering and Analyzing the Power Consumption of Smartphones*, Springer, 2023. [doi:10.1007/978-3-031-50327-6_29](https://doi.org/10.1007/978-3-031-50327-6_29)

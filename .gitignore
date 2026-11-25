@@ -37,3 +37,6 @@ client/.nuxt/
 
 # === Misc ===
 *.bak
+
+# === Third-party papers (kept locally, not redistributed) ===
+docs/referencias/
